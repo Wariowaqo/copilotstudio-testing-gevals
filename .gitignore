@@ -1,0 +1,75 @@
+# =============================================================================
+# SECURITY: Never commit secrets or credentials
+# =============================================================================
+
+# Environment variables (contains secrets)
+.env
+.env.local
+.env.*.local
+.env.enterprise
+*.env
+
+# Keep example file
+!.env.example
+
+# Token cache (contains auth tokens)
+bin/
+*.bin
+token_cache.json
+msal_cache.json
+.msal/
+
+# Private keys and certificates
+*.pem
+*.key
+*.pfx
+*.p12
+
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# =============================================================================
+# IDE & Editor
+# =============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# =============================================================================
+# Testing
+# =============================================================================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# DeepEval
+.deepeval/
+.deepeval
+
+# Test outputs (don't commit reports with potentially sensitive data)
+reports/*.html
+reports/*.json
+!reports/.gitkeep
+
+# =============================================================================
+# OS files
+# =============================================================================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini

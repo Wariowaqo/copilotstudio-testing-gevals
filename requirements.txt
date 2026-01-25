@@ -1,0 +1,43 @@
+# =============================================================================
+# Copilot Studio Testing - Enterprise Requirements
+# =============================================================================
+
+# Copilot SDK (client)
+git+https://github.com/microsoft/Agents-for-python.git@main#subdirectory=libraries/microsoft-agents-copilotstudio-client
+
+# Activity SDK
+git+https://github.com/microsoft/Agents-for-python.git@main#subdirectory=libraries/microsoft-agents-activity
+
+# Test dependencies
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+python-dotenv>=1.0.0
+pytest-html>=4.0.0
+pytest-json-report>=1.5.0
+
+# MSAL Authentication
+msal>=1.24.0
+msal-extensions>=1.0.0
+
+# HTML handling
+py>=1.11.0
+
+# DeepEval - LLM Evaluation
+deepeval>=0.21.0
+
+# =============================================================================
+# Enterprise Features (optional - install as needed)
+# =============================================================================
+
+# Azure Key Vault Integration
+# pip install azure-identity azure-keyvault-secrets
+azure-identity>=1.14.0
+azure-keyvault-secrets>=4.7.0
+
+# Azure Blob Storage for Result Archival
+# pip install azure-storage-blob
+azure-storage-blob>=12.19.0
+
+# YAML Configuration Support
+pyyaml>=6.0
+
