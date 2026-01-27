@@ -104,9 +104,9 @@ The CSV file must contain two columns:
 
 ```csv
 input_text,expected_output
-What is the capital of France?,The capital of France is Paris, which is known for its historical landmarks like the Eiffel Tower and the Louvre Museum.
-Who wrote 'Hamlet'?,William Shakespeare wrote the play 'Hamlet', which is considered one of the greatest works of English literature.
-What is the chemical symbol for water?,H3O is the correct chemical symbol for water.
+What is the purpose of the Power Platform Low-Code Partner Playbook?,The purpose of the Power Platform Low-Code Partner Playbook is to help Microsoft partners understand how Microsoft Power Platform can support their practice and offerings by using low-code capabilities to solve customer business challenges across industries and organization sizes.
+Who is the intended audience for the Power Platform Low-Code Partner Playbook?,"The intended audience for the Power Platform Low-Code Partner Playbook is Microsoft partners who want to use low-code capabilities to help customers solve business challenges, regardless of the customer’s industry or size and regardless of whether the partner is a systems integrator or an independent software vendor."
+
 ```
 
 ---
