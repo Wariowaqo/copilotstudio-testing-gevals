@@ -282,7 +282,6 @@ See the [DeepEval G-Eval docs](https://docs.confident-ai.com/docs/metrics-llm-ev
 
 | Issue | Solution |
 |-------|----------|
-<<<<<<< HEAD
 | Token acquisition failed | Delete `bin/cache.bin` and re-run to trigger interactive login |
 | Agent not responding | Verify agent is published and auth is set to "Authenticate with Microsoft" |
 | `ModuleNotFoundError` | Ensure virtual environment is activated and `pip install -r requirements.txt` completed |
