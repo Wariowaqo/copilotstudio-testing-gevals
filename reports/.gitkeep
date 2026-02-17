@@ -1,2 +1,0 @@
-# This file ensures the reports directory exists in git
-# Actual report files are gitignored for security

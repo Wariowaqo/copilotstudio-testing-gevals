@@ -10,6 +10,7 @@ import pytest
 import asyncio
 import sys
 import os
+import webbrowser
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -63,24 +64,18 @@ def pytest_runtest_makereport(item, call):
 
 def pytest_sessionfinish(session, exitstatus):
     """Generate custom HTML report after all tests complete."""
-    print(f"\nRunning teardown with pytest sessionfinish...")
-    
     if _test_results:
         try:
-            # Determine output path - same location as pytest-html report or default
             report_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "reports")
-            
-            # Ensure reports directory exists
             os.makedirs(report_dir, exist_ok=True)
-            
             output_path = os.path.join(report_dir, "evaluation_report.html")
             
-            print(f"\n📊 Generating report with {len(_test_results)} test results...")
             generate_html_report(_test_results, output_path)
-            print(f"✨ Custom report generated: {output_path}")
+            print(f"\nCustom report generated: {output_path}")
+            webbrowser.open(f"file:///{output_path}")
         except Exception as e:
-            print(f"\n⚠️ Error generating report: {e}")
+            print(f"\nError generating report: {e}")
             import traceback
             traceback.print_exc()
     else:
-        print("\n⚠️ No test results collected for report generation")
+        print("\nNo test results collected for report generation")

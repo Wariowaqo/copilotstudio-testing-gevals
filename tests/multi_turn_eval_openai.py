@@ -7,11 +7,6 @@ This module evaluates Copilot Studio agent responses using multiple quality metr
 - Completeness: Coverage of all key points from expected output
 
 The overall score is a weighted average, with Correctness weighted highest.
-
-SECURITY FEATURES (Phase 1-3):
-- Input validation against prompt injection
-- Rate limiting for API calls
-- Structured logging for observability
 """
 
 from dotenv import load_dotenv
@@ -25,22 +20,6 @@ from deepeval.metrics import GEval
 from deepeval.test_case import LLMTestCase, LLMTestCaseParams
 from testinglib.copilot_client import CopilotStudioClient
 from microsoft_agents.activity import ActivityTypes
-
-# =============================================================================
-# PHASE 1-3: SECURITY IMPORTS
-# =============================================================================
-# These modules provide enterprise-grade security features:
-# - input_validator: Protects against prompt injection attacks
-# - rate_limiter: Prevents API abuse and cost overruns
-# - structured_logging: Provides observability and audit trails
-
-from testinglib.input_validator import InputValidator, ValidationResult
-from testinglib.rate_limiter import RateLimiter, COPILOT_LIMITER, OPENAI_LIMITER
-from testinglib.structured_logging import setup_logging, get_logger, set_correlation_id
-
-# Initialize structured logging (JSON in CI, pretty in local dev)
-setup_logging(level=os.environ.get("LOG_LEVEL", "INFO"))
-logger = get_logger(__name__)
 
 # =============================================================================
 # CONFIGURATION
@@ -172,95 +151,30 @@ async def test_agent_response_quality(input_text, expected_output, started_clien
     - Relevancy (25%): Addresses the question
     - Completeness (20%): Covers key points
     - Coherence (15%): Clear and well-structured
-    
-    Security Features:
-    - Input validation (prompt injection protection)
-    - Rate limiting (API abuse protection)
-    - Structured logging (audit trail)
     """
-    # -------------------------------------------------------------------------
-    # PHASE 1: INPUT VALIDATION
-    # -------------------------------------------------------------------------
-    # Validate input against prompt injection and other attacks
-    # This protects your Copilot Studio agent from malicious inputs
-    
-    validation_result = InputValidator.validate(input_text)
-    if not validation_result.is_valid:
-        logger.warning(
-            "Input validation failed",
-            input_preview=input_text[:50],
-            error=validation_result.error_message,
-            severity=validation_result.severity.value
-        )
-        pytest.skip(f"Input validation failed: {validation_result.error_message}")
-    
-    # Use sanitized input for the test
-    sanitized_input = validation_result.sanitized_text
-    
-    # -------------------------------------------------------------------------
-    # PHASE 2: RATE LIMITING
-    # -------------------------------------------------------------------------
-    # Acquire rate limit before calling the API
-    # This prevents cost overruns and API quota exhaustion
-    
-    await COPILOT_LIMITER.acquire()
-    
-    # -------------------------------------------------------------------------
-    # PHASE 3: STRUCTURED LOGGING
-    # -------------------------------------------------------------------------
-    # Set correlation ID for this test (enables tracing across logs)
-    test_correlation_id = f"test-{request.node.name[:20]}-{os.urandom(4).hex()}"
-    set_correlation_id(test_correlation_id)
-    
-    logger.info(
-        "Starting test evaluation",
-        test_name=request.node.name,
-        input_preview=sanitized_input[:50] + "..." if len(sanitized_input) > 50 else sanitized_input
-    )
-    
     # Get response from agent
     actual_output = ""
-    async for activity in started_client.client.ask_question(sanitized_input):
+    async for activity in started_client.client.ask_question(input_text):
         if activity and activity.type == ActivityTypes.message:
             actual_output += activity.text or ""
     actual_output = actual_output.strip()
-    
-    logger.debug(
-        "Received agent response",
-        response_length=len(actual_output),
-        response_preview=actual_output[:100] + "..." if len(actual_output) > 100 else actual_output
-    )
 
-    # Create test case (using original input_text for expected_output comparison)
+    # Create test case
     test_case = LLMTestCase(
-        input=sanitized_input,
+        input=input_text,
         actual_output=actual_output,
         expected_output=expected_output
     )
 
-    # -------------------------------------------------------------------------
-    # EVALUATION: Rate limit the LLM evaluation calls
-    # -------------------------------------------------------------------------
-    # DeepEval uses OpenAI for evaluation - apply rate limiting
-    
-    # Initialize metrics
+    # Initialize and evaluate metrics
     correctness = create_correctness_metric()
     relevancy = create_relevancy_metric()
     coherence = create_coherence_metric()
     completeness = create_completeness_metric()
 
-    # Evaluate all metrics (rate-limited)
-    # Each metric call uses OpenAI, so we rate limit them
-    await OPENAI_LIMITER.acquire()
     correctness.measure(test_case)
-    
-    await OPENAI_LIMITER.acquire()
     relevancy.measure(test_case)
-    
-    await OPENAI_LIMITER.acquire()
     coherence.measure(test_case)
-    
-    await OPENAI_LIMITER.acquire()
     completeness.measure(test_case)
 
     # Calculate weighted overall score
@@ -330,22 +244,5 @@ async def test_agent_response_quality(input_text, expected_output, started_clien
     
     failure_msg += f"\nCorrectness Reason: {correctness.reason}\n"
     failure_msg += f"{'='*60}"
-
-    # -------------------------------------------------------------------------
-    # PHASE 3: LOG TEST COMPLETION
-    # -------------------------------------------------------------------------
-    passed = overall_score >= OVERALL_THRESHOLD
-    logger.info(
-        "Test evaluation completed",
-        test_name=request.node.name,
-        passed=passed,
-        overall_score=round(overall_score, 2),
-        threshold=OVERALL_THRESHOLD,
-        correctness_score=round(correctness.score, 2),
-        relevancy_score=round(relevancy.score, 2),
-        coherence_score=round(coherence.score, 2),
-        completeness_score=round(completeness.score, 2),
-        failed_metrics=failed_metrics if failed_metrics else None
-    )
 
     assert overall_score >= OVERALL_THRESHOLD, failure_msg

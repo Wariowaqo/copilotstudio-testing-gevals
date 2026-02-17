@@ -1,302 +1,277 @@
-# PytestAgentsSDK
+# Copilot Studio Automated Testing with G-Evals
 
-This project provides a sample test harness for evaluating Copilot Studio agents using [**Pytest**](https://docs.pytest.org/en/stable/) and [**DeepEval**](https://github.com/confident-ai/deepeval). It uses the [Microsoft 365 Agents SDK](https://github.com/microsoft/agents) to communicate with Copilot Studio and focuses on **semantic evaluation** of agent responses using DeepEval’s `GEval` metric.
+Automated quality evaluation for [Microsoft Copilot Studio](https://www.microsoft.com/en-us/microsoft-copilot/microsoft-copilot-studio) agents using **LLM-as-a-Judge**. This framework sends test questions to your agent, captures real responses, and evaluates them semantically using [DeepEval's G-Eval](https://docs.confident-ai.com/docs/metrics-llm-evals) metrics — powered by OpenAI.
 
-## Features
+Instead of brittle string matching, G-Eval uses an LLM to judge the quality of each response against your expected output. This means your tests can handle paraphrasing, different wording, and natural language variation — just like a human reviewer would.
 
-- Multi-turn conversation testing against a Copilot Studio agent
-- Semantic response evaluation using DeepEval’s `GEval` metric
-- Loads test cases from a CSV file
-- Custom HTML reporting with detailed metadata (user input, actual and expected output, score, reason)
-- Authentication via MSAL, supporting [“Authenticate with Microsoft”](https://learn.microsoft.com/en-us/microsoft-copilot-studio/configuration-end-user-authentication#authenticate-with-microsoft) in Copilot Studio
-- Easily extensible for use with additional metrics and long-term result tracking using DeepEval and Pytest plugins
+## What is G-Eval?
+
+[G-Eval](https://arxiv.org/abs/2303.16634) is an evaluation framework introduced in the paper *"G-Eval: NLG Evaluation using GPT-4 with Better Human Alignment"*. It uses large language models as evaluators by providing them with structured evaluation criteria (called "evaluation steps") and asking them to score responses on a scale of 0 to 1.
+
+**Why G-Eval over traditional metrics?**
+
+| Approach | Limitation |
+|----------|------------|
+| Exact string match | Fails on paraphrasing or synonyms |
+| BLEU / ROUGE | Surface-level n-gram overlap, misses semantic meaning |
+| Embedding similarity | Catches meaning but can't evaluate factual accuracy |
+| **G-Eval (LLM-as-a-Judge)** | **Understands context, evaluates factual accuracy, and aligns with human judgment** |
+
+DeepEval implements G-Eval as the [`GEval` metric](https://docs.confident-ai.com/docs/metrics-llm-evals), which this project uses to evaluate four dimensions of response quality.
+
+**Further reading:**
+
+- [G-Eval Paper (arXiv)](https://arxiv.org/abs/2303.16634)
+- [DeepEval G-Eval Documentation](https://docs.confident-ai.com/docs/metrics-llm-evals)
+- [DeepEval GitHub Repository](https://github.com/confident-ai/deepeval)
+- [Understanding LLM-as-a-Judge](https://www.confident-ai.com/blog/llm-as-a-judge)
+
+---
+
+## How It Works
+
+```
+test_cases.csv ──> Pytest ──> Microsoft Agents SDK ──> Copilot Studio Agent
+                                                              |
+                                                        Agent Response
+                                                              |
+                                                              v
+                                                    DeepEval G-Eval Metrics
+                                                    (powered by OpenAI)
+                                                              |
+                                          +-------------------+-------------------+
+                                          |                   |                   |
+                                    Correctness (40%)   Relevancy (25%)   Completeness (20%)
+                                                              |
+                                                        Coherence (15%)
+                                                              |
+                                                              v
+                                                   Weighted Overall Score
+                                                   Pass/Fail (threshold: 0.50)
+                                                              |
+                                                              v
+                                                    HTML Dashboard Report
+```
+
+1. Test cases are loaded from `input/test_cases.csv`
+2. Each question is sent to your Copilot Studio agent via the [Microsoft Agents SDK](https://github.com/microsoft/Agents-for-python)
+3. The agent's actual response is evaluated across 4 G-Eval metrics
+4. A weighted overall score determines pass/fail
+5. An interactive HTML report is generated at `reports/evaluation_report.html`
+
+---
+
+## Evaluation Metrics
+
+Each response is scored from 0 to 1 across four metrics, using custom evaluation steps that guide the LLM judge:
+
+| Metric | Weight | What it evaluates | Key evaluation criteria |
+|--------|--------|-------------------|------------------------|
+| **Correctness** | 40% | Factual accuracy against expected output | Penalizes contradictions and factual errors; tolerates AI disclaimers |
+| **Relevancy** | 25% | Whether the response addresses the actual question | Penalizes off-topic or partial answers |
+| **Completeness** | 20% | Coverage of key points from expected output | Accepts paraphrasing; penalizes missing information |
+| **Coherence** | 15% | Clarity, logical flow, and professional tone | Penalizes confusing structure and grammar issues |
+
+The **overall score** is a weighted average. A test passes if the overall score meets the threshold (default: `0.50`).
+
+All weights, thresholds, and evaluation criteria are fully configurable in `tests/multi_turn_eval_openai.py`.
 
 ---
 
 ## Setup
 
-### **1. Clone the repository**
+### 1. Clone the repository
 
 ```bash
-git clone https://github.com/microsoft/CopilotStudioSamples.git
-cd CopilotStudioSamples/FunctionalTesting/PytestAgentsSDK
+git clone https://github.com/Wariowaqo/cs-testing-gevals.git
+cd cs-testing-gevals
 ```
 
-### **2. Create and activate a virtual environment**
+### 2. Create and activate a virtual environment
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate  # On Windows use `.venv\Scripts\activate`
+python -m venv venv
+venv\Scripts\activate        # Windows
+# source venv/bin/activate   # macOS/Linux
 ```
 
-### **3. Install required dependencies**
+### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### **4. Create an app registration**
+### 4. Create an Azure App Registration
 
-You will need to register an application in Azure for the SDK to authenticate with Copilot Studio:
+Register an application in Azure for the SDK to authenticate with Copilot Studio:
 
-- Create a **single-tenant** app registration in Azure
-- Under **Authentication → Platform configurations**, click **Add a platform**, and select **Mobile and desktop applications**
+- Create a **single-tenant** app registration in [Azure Portal](https://portal.azure.com)
+- Under **Authentication > Platform configurations**, click **Add a platform** > **Mobile and desktop applications**
 - Add these redirect URIs:
-  - `msal40347a26-35bb-48f3-bdc4-7f4f209aecb1://auth`  (MSAL only)
+  - `msal40347a26-35bb-48f3-bdc4-7f4f209aecb1://auth`
   - `http://localhost`
-- Under **API permissions**, click **Add a permission**
-  - Choose **APIs my organization uses**, then search for **Power Platform API**
-  - Choose **Delegated permissions**, then add `CopilotStudio.Copilots.Invoke`
+- Under **API permissions**, click **Add a permission**:
+  - Choose **APIs my organization uses** > search **Power Platform API**
+  - Select **Delegated permissions** > add `CopilotStudio.Copilots.Invoke`
 
-> Note: If the Power Platform API doesn't appear, visibility can be stale — run the refresh script in the [Microsoft docs](https://learn.microsoft.com/en-us/power-platform/admin/programmability-authentication-v2?tabs=powershell#step-2-configure-api-permissions).
+> If Power Platform API doesn't appear, see [Microsoft's refresh instructions](https://learn.microsoft.com/en-us/power-platform/admin/programmability-authentication-v2?tabs=powershell#step-2-configure-api-permissions).
 
-### **5. Authentication and Agent details**
+### 5. Configure environment variables
 
-Create a `.env` file (you can copy from `.env.template`) and populate it with your MSAL and Copilot Studio agent configuration:
+Create a `.env` file in the project root:
 
 ```env
 APP_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 TENANT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ENVIRONMENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-AGENT_IDENTIFIER=cr26e_dMyAgent  # This is the schema name, found under Settings > Advanced > Metadata
+AGENT_IDENTIFIER=your_agent_schema_name
+
+# OpenAI API Key (for G-Eval evaluation)
+OPENAI_API_KEY=sk-your-key-here
 ```
 
-### **6. Configure Azure OpenAI or OpenAI details**
+**Where to find these values:**
 
-You can use either OpenAI or Azure OpenAI with DeepEval.
+| Variable | Where to find it |
+|----------|-----------------|
+| `APP_CLIENT_ID` | Azure Portal > App registrations > Your app > Application (client) ID |
+| `TENANT_ID` | Azure Portal > Microsoft Entra ID > Overview > Tenant ID |
+| `ENVIRONMENT_ID` | Copilot Studio URL or Settings > Session details |
+| `AGENT_IDENTIFIER` | Copilot Studio > Your agent > Settings > Advanced > Metadata (schema name) |
+| `OPENAI_API_KEY` | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
 
-#### To configure Azure OpenAI using the DeepEval CLI:
+**Azure OpenAI alternative:** If you prefer Azure OpenAI instead of OpenAI, configure it via the DeepEval CLI:
 
 ```bash
 deepeval set-azure-openai \
-    --openai-endpoint=<endpoint> \                     # e.g. https://example-resource.openai.azure.com/
-    --openai-api-key=<api_key> \
-    --openai-model-name=<model_name> \                 # e.g. gpt-4o
-    --deployment-name=<deployment_name> \              # e.g. Test Deployment
-    --openai-api-version=<openai_api_version>          # e.g. 2025-01-01-preview
+    --openai-endpoint=https://your-resource.openai.azure.com/ \
+    --openai-api-key=your-key \
+    --openai-model-name=gpt-4o \
+    --deployment-name=your-deployment \
+    --openai-api-version=2025-01-01-preview
 ```
 
-> These values will be stored in a local `.deepeval` configuration file.
+### 6. Publish your agent
 
-Alternatively, if you're using OpenAI (not Azure), set the following environment variable:
-
-```bash
-export OPENAI_API_KEY=<your-openai-key>
-```
-
-### **7. Publish and set agent authentication**
-
-Before running tests, ensure that your Copilot Studio agent is:
+Ensure your Copilot Studio agent is:
 
 - **Published** in the Copilot Studio portal
-- Configured to use **[Authenticate with Microsoft](https://learn.microsoft.com/en-us/microsoft-copilot-studio/configuration-end-user-authentication#authenticate-with-microsoft)** under **Settings > Security > Authentication**
+- Using **[Authenticate with Microsoft](https://learn.microsoft.com/en-us/microsoft-copilot-studio/configuration-end-user-authentication#authenticate-with-microsoft)** under Settings > Security > Authentication
 
-### **8. Prepare Test Cases (CSV Input)**
+### 7. Add test cases
 
-Before running the tests, populate the CSV file at `input/test_cases.csv` with your test cases.
-
-The CSV file must contain two columns:
-
-- `input_text`: The message sent to the Copilot Studio agent
-- `expected_output`: The ideal response you'd expect from the agent
-
-#### Example:
+Populate `input/test_cases.csv` with your test scenarios:
 
 ```csv
 input_text,expected_output
-What is the capital of France?,The capital of France is Paris, which is known for its historical landmarks like the Eiffel Tower and the Louvre Museum.
-Who wrote 'Hamlet'?,William Shakespeare wrote the play 'Hamlet', which is considered one of the greatest works of English literature.
-What is the chemical symbol for water?,H3O is the correct chemical symbol for water.
+What is Power Platform?,Power Platform is a suite of low-code tools including Power Apps Power Automate Power BI and Copilot Studio.
 ```
 
 ---
 
-## Running the Tests
-
-From the project directory, run:
+## Running Tests
 
 ```bash
 pytest tests/multi_turn_eval_openai.py -v
 ```
 
-This will:
+On first run, a browser window opens for MSAL interactive login. Subsequent runs use the cached token.
 
-- Start a conversation with your Copilot Studio agent
-- Send test questions and capture responses
-- Evaluate responses across **4 metrics**: Correctness, Relevancy, Coherence, and Completeness
-- Calculate a weighted overall score
-- Automatically generate a custom HTML report at `reports/evaluation_report.html`
+**Useful options:**
+
+```bash
+pytest tests/multi_turn_eval_openai.py -v --tb=short    # Concise error tracebacks
+pytest tests/multi_turn_eval_openai.py -x               # Stop on first failure
+pytest tests/multi_turn_eval_openai.py -v -k "capital"   # Run tests matching keyword
+```
 
 ---
 
-## Output
+## HTML Report
 
-The custom HTML report (`reports/evaluation_report.html`) features a modern dark-themed dashboard designed for testing teams:
+After tests complete, an interactive HTML dashboard is generated at `reports/evaluation_report.html`. Open it in any browser.
 
-### Dashboard Features
+**Dashboard features:**
 
 | Feature | Description |
 |---------|-------------|
-| **📊 Stats Bar** | Quick overview showing Total Tests, Passed, Failed, and Average Score |
-| **🔍 Search** | Filter tests by typing any keyword from questions or content |
-| **🏷️ Filter Chips** | One-click filters for All, Passed, Failed, High Score, or Low Score |
-| **📋 Compact Table** | Scannable table view with Status, Conversation ID, Question, Score, and Metrics |
-| **📐 Mini Metrics** | Color-coded score pills (C/R/Co/Cm) in each row for quick assessment |
-| **⏩ Details Modal** | Click "Details →" to open a slide-in panel with full information |
-| **⌨️ Keyboard Nav** | Use ← → arrow keys to navigate between tests in the modal |
-
-### Metrics Breakdown
-
-Each test is evaluated across 4 weighted metrics:
-
-| Metric | Weight | Description |
-|--------|--------|-------------|
-| **Correctness** | 40% | Factual accuracy - penalizes contradictions and errors |
-| **Relevancy** | 25% | How directly the response addresses the user's question |
-| **Completeness** | 20% | Coverage of key points from the expected answer |
-| **Coherence** | 15% | Clarity, logical structure, and professional tone |
-
-The **Overall Score** is a weighted average. Tests pass if the overall score meets the threshold (default: 0.50).
+| Stats bar | Total tests, passed, failed, average score at a glance |
+| Search | Filter tests by keyword |
+| Filter chips | One-click filters: All, Passed, Failed, High Score, Low Score |
+| Compact table | Status, conversation ID, question, overall score, mini metric pills |
+| Details panel | Click any row to see full question, expected output, actual output, scores, and LLM reasoning |
+| Keyboard nav | Arrow keys to navigate between tests in the detail view |
 
 ---
 
 ## Project Structure
 
 ```
+├── .env                       # Your credentials (git-ignored)
+├── .gitignore                 # Git ignore rules
 ├── pytest.ini                 # Pytest configuration
 ├── requirements.txt           # Python dependencies
-├── README.md                  # This documentation
-├── .env                       # Environment variables (you create this)
-├── .gitignore                 # Git ignore rules
+├── README.md
 ├── input/
-│   └── test_cases.csv         # Test input/expected output pairs
+│   └── test_cases.csv         # Test input / expected output pairs
 ├── reports/
-│   └── evaluation_report.html # Generated custom HTML dashboard
+│   └── evaluation_report.html # Generated HTML dashboard
 ├── testinglib/
 │   ├── config.py              # Copilot Studio connection settings
-│   ├── copilot_client.py      # Client wrapper for Copilot Studio API
-│   ├── msal_cache_plugin.py   # Token caching for MSAL authentication
-│   └── report_generator.py    # Custom HTML report generator
+│   ├── copilot_client.py      # MSAL auth + Copilot Studio client wrapper
+│   ├── msal_cache_plugin.py   # Persistent token cache
+│   └── report_generator.py    # HTML report generator
 └── tests/
-    ├── conftest.py            # Pytest hooks and report generation trigger
-    └── multi_turn_eval_openai.py  # Main test file with 4-metric evaluation
+    ├── conftest.py            # Pytest hooks for result collection + report trigger
+    └── multi_turn_eval_openai.py  # Main test file with 4 G-Eval metrics
 ```
-
----
-
-## File Descriptions
-
-### Configuration Files
-
-| File | Description |
-|------|-------------|
-| **`pytest.ini`** | Pytest configuration file. Sets the Python path, test directory (`tests/`), enables async mode for pytest-asyncio, and configures the event loop scope for async fixtures. |
-| **`requirements.txt`** | Lists all Python dependencies including the Microsoft Agents SDK, pytest, DeepEval, MSAL authentication libraries, and pytest-html for report generation. |
-| **`.env`** | Environment variables file (you create this from `.env.template`). Contains your Azure app registration credentials and Copilot Studio agent configuration. |
-
-### Input/Output
-
-| File | Description |
-|------|-------------|
-| **`input/test_cases.csv`** | CSV file containing test cases with two columns: `input_text` (the question to send to the agent) and `expected_output` (the ideal response for semantic comparison). Each row becomes a separate test case. |
-| **`reports/evaluation_report.html`** | Custom HTML dashboard report. Open in a browser to view the interactive table with search, filters, and expandable details for each test. |
-
-### Test Library (`testinglib/`)
-
-| File | Description |
-|------|-------------|
-| **`config.py`** | Defines `McsConnectionSettings`, a class that extends the SDK's `ConnectionSettings`. It reads configuration from environment variables (`APP_CLIENT_ID`, `TENANT_ID`, `ENVIRONMENT_ID`, `AGENT_IDENTIFIER`) and validates required values. |
-| **`copilot_client.py`** | Contains `CopilotStudioClient`, the main wrapper class that handles authentication and communication with Copilot Studio. It acquires tokens via MSAL (with caching) and initializes the `CopilotClient` from the Microsoft Agents SDK. |
-| **`msal_cache_plugin.py`** | Provides `get_msal_token_cache()`, a helper function that creates a persistent token cache. It attempts encrypted storage first, falling back to plaintext on systems where encryption is unavailable. This avoids repeated interactive logins. |
-| **`report_generator.py`** | Custom HTML report generator that creates the interactive dashboard. Generates a standalone HTML file with dark theme, table view, search/filter controls, and modal details panel. Called automatically by `conftest.py` after tests complete. |
-
-### Tests (`tests/`)
-
-| File | Description |
-|------|-------------|
-| **`conftest.py`** | Pytest configuration and hooks. Collects test results during execution and triggers the custom HTML report generation after all tests complete. Includes compatibility fixes for async event loops. |
-| **`multi_turn_eval_openai.py`** | The main test file with 4-metric evaluation. Loads test cases from CSV, communicates with Copilot Studio, and evaluates responses using DeepEval's `GEval` across Correctness (40%), Relevancy (25%), Completeness (20%), and Coherence (15%). Calculates weighted overall score and attaches all data for reporting. |
-
----
-
-## How It Works
-
-1. **Test cases are loaded** from `input/test_cases.csv`
-2. **A conversation is started** with your Copilot Studio agent using the Microsoft Agents SDK
-3. **Each test case question** is sent to the agent via `ask_question()`
-4. **The agent's response** is captured and evaluated across 4 metrics:
-   - **Correctness** (40%): Factual accuracy vs expected output
-   - **Relevancy** (25%): How directly it addresses the question
-   - **Completeness** (20%): Coverage of key points
-   - **Coherence** (15%): Clarity and logical structure
-5. **A weighted overall score** is calculated from the 4 metrics
-6. **Results are collected** by `conftest.py` during test execution
-7. **Custom HTML report** is auto-generated at `reports/evaluation_report.html`
 
 ---
 
 ## Customization
 
-### Adjusting Metric Weights
+### Metric Weights
 
-In `tests/multi_turn_eval_openai.py`, modify the `METRIC_WEIGHTS` dictionary:
+Adjust how much each metric contributes to the overall score in `tests/multi_turn_eval_openai.py`:
 
 ```python
 METRIC_WEIGHTS = {
-    "correctness": 0.40,  # Factual accuracy (most important)
-    "relevancy": 0.25,    # Addresses the question
-    "completeness": 0.20, # Covers key points
-    "coherence": 0.15,    # Well-structured
+    "correctness": 0.40,
+    "relevancy": 0.25,
+    "completeness": 0.20,
+    "coherence": 0.15,
 }
 ```
 
-### Adjusting the Pass/Fail Threshold
-
-Modify the `OVERALL_THRESHOLD` to change when tests pass:
+### Pass/Fail Threshold
 
 ```python
-OVERALL_THRESHOLD = 0.50  # Adjust this value (0.0 to 1.0)
+OVERALL_THRESHOLD = 0.50  # 0.0 to 1.0
 ```
 
-### Modifying Individual Metric Thresholds
+### Evaluation Criteria
 
-Each metric also has its own threshold for detailed analysis:
-
-```python
-METRIC_THRESHOLDS = {
-    "correctness": 0.50,
-    "relevancy": 0.50,
-    "completeness": 0.40,
-    "coherence": 0.40,
-}
-```
-
-### Customizing Evaluation Criteria
-
-Each metric has its own `evaluation_steps`. For example, to modify the Correctness evaluation:
+Each metric uses custom `evaluation_steps` that guide the LLM judge. Modify them to match your domain:
 
 ```python
 def create_correctness_metric():
     return GEval(
         name="Correctness",
         evaluation_steps=[
-            "Check whether the facts in 'actual output' contradict any facts in 'expected output'",
-            "Heavily penalize factual errors or contradictions",
-            "Penalize significant omissions of important details",
-            # Add or modify steps here
+            "Check whether facts in 'actual output' contradict 'expected output'",
+            "Heavily penalize factual errors",
+            # Add domain-specific criteria here
         ],
-        ...
+        threshold=0.50,
+        evaluation_params=[
+            LLMTestCaseParams.INPUT,
+            LLMTestCaseParams.ACTUAL_OUTPUT,
+            LLMTestCaseParams.EXPECTED_OUTPUT
+        ]
     )
 ```
 
-### Adding New Test Cases
-
-Simply add new rows to `input/test_cases.csv`:
-
-```csv
-input_text,expected_output
-Your question here,The expected answer here
-```
+See the [DeepEval G-Eval docs](https://docs.confident-ai.com/docs/metrics-llm-evals) for guidance on writing effective evaluation steps.
 
 ---
 
@@ -304,7 +279,31 @@ Your question here,The expected answer here
 
 | Issue | Solution |
 |-------|----------|
-| **Token acquisition failed** | Delete `bin/token_cache.bin` and run again to re-authenticate interactively |
-| **Agent not responding** | Ensure your agent is published in Copilot Studio and authentication is set to "Authenticate with Microsoft" |
-| **Tests timing out** | Check your network connection and agent availability; consider increasing timeouts |
-| **Python 3.13+ async errors** | Use Python 3.12 for best compatibility with aiohttp and pytest-asyncio |
+| Token acquisition failed | Delete `bin/cache.bin` and re-run to trigger interactive login |
+| Agent not responding | Verify agent is published and auth is set to "Authenticate with Microsoft" |
+| `ModuleNotFoundError` | Ensure virtual environment is activated and `pip install -r requirements.txt` completed |
+| Python 3.13+ async errors | Use Python 3.12 for best compatibility with aiohttp |
+
+---
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| Test framework | [Pytest](https://docs.pytest.org/) + [pytest-asyncio](https://pytest-asyncio.readthedocs.io/) |
+| Agent communication | [Microsoft Agents SDK](https://github.com/microsoft/Agents-for-python) (DirectLine) |
+| Authentication | [MSAL](https://learn.microsoft.com/en-us/entra/msal/python/) with persistent token cache |
+| LLM evaluation | [DeepEval](https://docs.confident-ai.com/) G-Eval metrics |
+| LLM judge | [OpenAI GPT-4o](https://platform.openai.com/) (configurable to Azure OpenAI) |
+
+---
+
+## Resources
+
+- [DeepEval G-Eval Metric Documentation](https://docs.confident-ai.com/docs/metrics-llm-evals)
+- [G-Eval: NLG Evaluation using GPT-4 with Better Human Alignment (Paper)](https://arxiv.org/abs/2303.16634)
+- [DeepEval GitHub](https://github.com/confident-ai/deepeval)
+- [Microsoft Agents SDK for Python](https://github.com/microsoft/Agents-for-python)
+- [Copilot Studio Authentication Setup](https://learn.microsoft.com/en-us/microsoft-copilot-studio/configuration-end-user-authentication)
+- [Azure App Registration Guide](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app)
+- [MSAL Python Documentation](https://learn.microsoft.com/en-us/entra/msal/python/)
