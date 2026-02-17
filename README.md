@@ -164,7 +164,13 @@ Populate `input/test_cases.csv` with your test scenarios:
 
 ```csv
 input_text,expected_output
+<<<<<<< HEAD
 What is Power Platform?,Power Platform is a suite of low-code tools including Power Apps Power Automate Power BI and Copilot Studio.
+=======
+What is the purpose of the Power Platform Low-Code Partner Playbook?,The purpose of the Power Platform Low-Code Partner Playbook is to help Microsoft partners understand how Microsoft Power Platform can support their practice and offerings by using low-code capabilities to solve customer business challenges across industries and organization sizes.
+Who is the intended audience for the Power Platform Low-Code Partner Playbook?,"The intended audience for the Power Platform Low-Code Partner Playbook is Microsoft partners who want to use low-code capabilities to help customers solve business challenges, regardless of the customer’s industry or size and regardless of whether the partner is a systems integrator or an independent software vendor."
+
+>>>>>>> 5cafda1068684f3eaa0726b8c223d85f0b955d3f
 ```
 
 ---
@@ -279,6 +285,7 @@ See the [DeepEval G-Eval docs](https://docs.confident-ai.com/docs/metrics-llm-ev
 
 | Issue | Solution |
 |-------|----------|
+<<<<<<< HEAD
 | Token acquisition failed | Delete `bin/cache.bin` and re-run to trigger interactive login |
 | Agent not responding | Verify agent is published and auth is set to "Authenticate with Microsoft" |
 | `ModuleNotFoundError` | Ensure virtual environment is activated and `pip install -r requirements.txt` completed |
@@ -307,3 +314,9 @@ See the [DeepEval G-Eval docs](https://docs.confident-ai.com/docs/metrics-llm-ev
 - [Copilot Studio Authentication Setup](https://learn.microsoft.com/en-us/microsoft-copilot-studio/configuration-end-user-authentication)
 - [Azure App Registration Guide](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app)
 - [MSAL Python Documentation](https://learn.microsoft.com/en-us/entra/msal/python/)
+=======
+| **Token acquisition failed** | Delete `bin/token_cache.bin` and run again to re-authenticate interactively |
+| **Agent not responding** | Ensure your agent is published in Copilot Studio and authentication is set to "Authenticate with Microsoft" |
+| **Tests timing out** | Check your network connection and agent availability; consider increasing timeouts |
+| **Python 3.13+ async errors** | Use Python 3.12 for best compatibility with aiohttp and pytest-asyncio |
+>>>>>>> 5cafda1068684f3eaa0726b8c223d85f0b955d3f
