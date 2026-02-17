@@ -1,4 +1,4 @@
-# Copilot Studio Automated Testing with G-Evals
+# Copilot Studio Testing with G-Evals
 
 Automated quality evaluation for [Microsoft Copilot Studio](https://www.microsoft.com/en-us/microsoft-copilot/microsoft-copilot-studio) agents using **LLM-as-a-Judge**. This framework sends test questions to your agent, captures real responses, and evaluates them semantically using [DeepEval's G-Eval](https://docs.confident-ai.com/docs/metrics-llm-evals) metrics — powered by OpenAI.
 
@@ -164,13 +164,10 @@ Populate `input/test_cases.csv` with your test scenarios:
 
 ```csv
 input_text,expected_output
-<<<<<<< HEAD
 What is Power Platform?,Power Platform is a suite of low-code tools including Power Apps Power Automate Power BI and Copilot Studio.
-=======
 What is the purpose of the Power Platform Low-Code Partner Playbook?,The purpose of the Power Platform Low-Code Partner Playbook is to help Microsoft partners understand how Microsoft Power Platform can support their practice and offerings by using low-code capabilities to solve customer business challenges across industries and organization sizes.
 Who is the intended audience for the Power Platform Low-Code Partner Playbook?,"The intended audience for the Power Platform Low-Code Partner Playbook is Microsoft partners who want to use low-code capabilities to help customers solve business challenges, regardless of the customer’s industry or size and regardless of whether the partner is a systems integrator or an independent software vendor."
 
->>>>>>> 5cafda1068684f3eaa0726b8c223d85f0b955d3f
 ```
 
 ---
