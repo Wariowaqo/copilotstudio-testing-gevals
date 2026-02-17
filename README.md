@@ -315,3 +315,6 @@ See the [DeepEval G-Eval docs](https://docs.confident-ai.com/docs/metrics-llm-ev
 | **Agent not responding** | Ensure your agent is published in Copilot Studio and authentication is set to "Authenticate with Microsoft" |
 | **Tests timing out** | Check your network connection and agent availability; consider increasing timeouts |
 | **Python 3.13+ async errors** | Use Python 3.12 for best compatibility with aiohttp and pytest-asyncio |
+
+=======
+
