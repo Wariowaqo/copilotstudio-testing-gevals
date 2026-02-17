@@ -1,6 +1,6 @@
 # Copilot Studio Testing with G-Evals
 
-Automated quality evaluation for [Microsoft Copilot Studio](https://www.microsoft.com/en-us/microsoft-copilot/microsoft-copilot-studio) agents using **LLM-as-a-Judge**. This framework sends test questions to your agent, captures real responses, and evaluates them semantically using [DeepEval's G-Eval](https://docs.confident-ai.com/docs/metrics-llm-evals) metrics — powered by OpenAI.
+Quality evaluation for [Microsoft Copilot Studio](https://www.microsoft.com/en-us/microsoft-copilot/microsoft-copilot-studio) agents using **LLM-as-a-Judge**. This framework sends test questions to your agent, captures real responses, and evaluates them semantically using [DeepEval's G-Eval](https://docs.confident-ai.com/docs/metrics-llm-evals) metrics — powered by OpenAI.
 
 Instead of brittle string matching, G-Eval uses an LLM to judge the quality of each response against your expected output. This means your tests can handle paraphrasing, different wording, and natural language variation — just like a human reviewer would.
 
